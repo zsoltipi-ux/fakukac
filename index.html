@@ -1,114 +1,212 @@
 <!doctype html>
 <html lang="hu">
+<!--
+  Fakukac — index.html (v2 · engaging upgrade)
+
+  Changelog:
+  • Trust-strip 3 animált counter-rel a hero alatt (placeholder számok, Tibi tölti)
+  • Új "Mire számíts?" 6-lépéses folyamat-szekció
+  • FAQ accordion 6 kérdéssel (native <details>, akadálymentes)
+  • Sticky mobil CTA gomb hero alatt (csak ≤760px-en jelenik meg)
+  • Hero mascot parallax + eye-tracking (kurzor és érintés követés)
+  • Reveal animációk minden szekcióra (IntersectionObserver, fade+up, stagger)
+  • Mikrointerakciók: service hover lift, type-pill tap-pulse, button hover lift
+  • Akadálymentesség: focus ring-ek, 44px+ tap target-ek, prefers-reduced-motion respect
+
+  Trade-offs:
+  • Parallax egyszerű scroll-listenerrel (csak heron) — alacsony költség, mobilon stabil
+  • Sticky CTA scroll-pozícióval triggerel (nem IntersectionObserver) — egyszerűbb, jobban viselkedik bounce-szal
+  • Trust counterek és FAQ szövegek placeholder-ek — Tibivel kell finomítani
+-->
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Fakukac — Tibi keze munkája · Faház, előtető, kutyaház</title>
 <meta name="description" content="Fakukac Tibor — előtetők, faházak, kutyaházak, tárolók, ajtók, ablakok. Becsült ár 1 perc alatt.">
+<meta name="theme-color" content="#fbf6ee">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700;9..144,900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+  /* ===== Reset & tokens ===== */
   *,*::before,*::after{box-sizing:border-box}
   html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
   :root{
-    --cream:#fbf6ee;
-    --cream-2:#f3e7cf;
-    --wood-dark:#3a2516;
-    --wood-mid:#8b5a2b;
-    --wood-warm:#c97b40;
-    --wood-light:#e8c9a1;
-    --moss:#6b7f4a;
-    --shadow:0 8px 28px rgba(58,37,22,.14);
+    --cream:#fbf6ee; --cream-2:#f3e7cf; --cream-3:#ead9b4;
+    --wood-dark:#3a2516; --wood-darker:#2a1a0e;
+    --wood-mid:#8b5a2b; --wood-warm:#c97b40; --wood-light:#e8c9a1;
+    --moss:#6b7f4a; --rust:#d97757;
     --shadow-sm:0 2px 8px rgba(58,37,22,.08);
+    --shadow:0 8px 28px rgba(58,37,22,.14);
+    --shadow-lg:0 18px 50px rgba(58,37,22,.18);
+    --radius-sm:10px; --radius:16px; --radius-lg:22px;
+    --t-fast:.15s ease; --t-med:.3s cubic-bezier(.2,.7,.2,1);
   }
-  body{margin:0;font-family:'Inter',system-ui,-apple-system,sans-serif;color:#3a2516;background:var(--cream);line-height:1.6;-webkit-font-smoothing:antialiased}
-  h1,h2,h3{font-family:'Fraunces',Georgia,serif;line-height:1.12;color:var(--wood-dark);margin:0 0 .5em;letter-spacing:-.01em}
-  h1{font-size:clamp(2.1rem,5.5vw + .8rem,3.7rem);font-weight:900}
-  h2{font-size:clamp(1.7rem,3vw + .8rem,2.5rem);font-weight:700}
+  body{margin:0;font-family:'Inter',system-ui,-apple-system,sans-serif;color:var(--wood-dark);background:var(--cream);line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;background-image:repeating-linear-gradient(180deg,rgba(74,46,28,.018) 0 1px,transparent 1px 11px),repeating-linear-gradient(180deg,rgba(74,46,28,.012) 0 1px,transparent 1px 27px);opacity:.85}
+  body > *{position:relative;z-index:1}
+  h1,h2,h3,h4{font-family:'Fraunces',Georgia,serif;line-height:1.12;color:var(--wood-dark);margin:0 0 .5em;letter-spacing:-.01em}
+  h1{font-size:clamp(2.2rem,5.5vw + .8rem,3.9rem);font-weight:900}
+  h2{font-size:clamp(1.7rem,3vw + .8rem,2.6rem);font-weight:700}
   h3{font-size:clamp(1.15rem,1vw + .8rem,1.4rem);font-weight:700}
-  p{margin:0 0 1em}
-  a{color:inherit}
-  /* Header */
-  .nav{position:sticky;top:0;z-index:50;background:rgba(251,246,238,.92);backdrop-filter:blur(10px);border-bottom:1px solid rgba(58,37,22,.08)}
-  .nav-inner{max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:.7rem 1.1rem;gap:1rem}
+  p{margin:0 0 1em} a{color:inherit}
+  :focus-visible{outline:3px solid var(--wood-warm);outline-offset:2px;border-radius:6px}
+
+  /* ===== Reveal ===== */
+  .reveal{opacity:0;transform:translateY(16px);transition:opacity .65s var(--t-med),transform .65s var(--t-med)}
+  .reveal.in{opacity:1;transform:none}
+
+  /* ===== Header ===== */
+  .nav{position:sticky;top:0;z-index:50;background:rgba(251,246,238,.86);backdrop-filter:saturate(160%) blur(12px);-webkit-backdrop-filter:saturate(160%) blur(12px);border-bottom:1px solid rgba(58,37,22,.07)}
+  .nav-inner{max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:.65rem 1.1rem;gap:1rem}
   .brand{display:flex;align-items:center;gap:.7rem;text-decoration:none;color:var(--wood-dark)}
   .brand-name{font-family:'Fraunces',serif;font-weight:900;font-size:1.45rem;letter-spacing:-.02em;display:block;line-height:1}
   .brand-tag{font-size:.72rem;color:var(--wood-mid);display:block;margin-top:2px;letter-spacing:.04em}
-  .nav-cta{display:inline-flex;align-items:center;gap:.45rem;padding:.6rem 1.1rem;border-radius:999px;background:var(--wood-warm);color:#fff;text-decoration:none;font-weight:700;font-size:.95rem;box-shadow:var(--shadow-sm);white-space:nowrap;border:0;cursor:pointer;font-family:inherit}
-  .nav-cta:hover{background:var(--wood-mid)}
+  .nav-cta{display:inline-flex;align-items:center;gap:.45rem;padding:.7rem 1.15rem;border-radius:999px;background:var(--wood-warm);color:#fff;text-decoration:none;font-weight:700;font-size:.95rem;box-shadow:var(--shadow-sm);white-space:nowrap;border:0;cursor:pointer;font-family:inherit;transition:transform var(--t-fast),background var(--t-fast),box-shadow var(--t-fast);min-height:44px}
+  .nav-cta:hover{background:var(--wood-mid);box-shadow:var(--shadow);transform:translateY(-1px)}
+  .nav-cta:active{transform:translateY(0)}
   @media(max-width:480px){.nav-cta .lbl{display:none}}
-  /* Hero */
-  .hero{padding:2.5rem 1.1rem 2.5rem;background:radial-gradient(ellipse at top right,rgba(201,123,64,.18),transparent 60%),linear-gradient(180deg,var(--cream),#f7eed9);position:relative;overflow:hidden}
-  .hero::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:24px;background:radial-gradient(ellipse at center top,rgba(58,37,22,.06),transparent 70%);pointer-events:none}
+
+  /* ===== Hero ===== */
+  .hero{padding:3rem 1.1rem 3.5rem;background:radial-gradient(ellipse at 80% 0%,rgba(201,123,64,.22),transparent 55%),linear-gradient(180deg,var(--cream) 0%,#f7eed9 100%);position:relative;overflow:hidden}
+  .hero::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:24px;background:radial-gradient(ellipse at center top,rgba(58,37,22,.08),transparent 70%);pointer-events:none}
   .hero-inner{max-width:1100px;margin:0 auto;display:grid;gap:1.5rem;grid-template-columns:1fr;align-items:center}
   @media(min-width:860px){.hero-inner{grid-template-columns:1.15fr 1fr;gap:3rem}}
-  .eyebrow{font-size:.82rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--wood-warm);margin:0 0 .6rem;display:flex;align-items:center;gap:.5rem}
+  .eyebrow{font-size:.82rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--wood-warm);margin:0 0 .65rem;display:flex;align-items:center;gap:.6rem}
   .eyebrow::before{content:"";width:24px;height:2px;background:var(--wood-warm);border-radius:2px}
-  .hero h1 em{font-style:normal;color:var(--wood-warm)}
-  .lead{font-size:clamp(1rem,.5vw + .95rem,1.18rem);color:#5a3d27;max-width:34ch}
-  .hero-actions{display:flex;flex-wrap:wrap;gap:.7rem;margin-top:1.4rem}
-  .btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;padding:.9rem 1.3rem;border-radius:12px;font-weight:700;text-decoration:none;cursor:pointer;border:0;font-size:1rem;font-family:inherit;transition:transform .06s ease,background .15s,box-shadow .15s}
+  h1 em{font-style:normal;color:var(--wood-warm);position:relative;display:inline-block}
+  h1 em::after{content:"";position:absolute;left:0;right:0;bottom:.05em;height:.18em;background:rgba(201,123,64,.18);z-index:-1;border-radius:2px}
+  .lead{font-size:clamp(1.02rem,.5vw + .95rem,1.2rem);color:#5a3d27;max-width:34ch}
+  .hero-actions{display:flex;flex-wrap:wrap;gap:.7rem;margin-top:1.5rem}
+
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;padding:.95rem 1.35rem;border-radius:14px;font-weight:700;text-decoration:none;cursor:pointer;border:0;font-size:1rem;font-family:inherit;transition:transform var(--t-fast),background var(--t-fast),box-shadow var(--t-fast);min-height:48px}
   .btn-primary{background:var(--wood-dark);color:var(--cream);box-shadow:var(--shadow)}
-  .btn-primary:hover{background:var(--wood-mid)}
-  .btn-primary:active{transform:translateY(1px)}
+  .btn-primary:hover{background:var(--wood-mid);transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+  .btn-primary:active{transform:translateY(0)}
   .btn-secondary{background:transparent;color:var(--wood-dark);border:2px solid var(--wood-dark)}
-  .btn-secondary:hover{background:var(--wood-dark);color:var(--cream)}
-  /* Mascot */
-  .mascot-wrap{aspect-ratio:1/1;max-width:380px;margin:0 auto;width:100%;position:relative}
-  .mascot-svg{width:100%;height:100%;filter:drop-shadow(0 18px 28px rgba(74,46,28,.22));animation:wiggle 5s ease-in-out infinite;transform-origin:center bottom}
-  @keyframes wiggle{0%,100%{transform:rotate(-1.5deg)}50%{transform:rotate(1.5deg)}}
-  /* Sections */
-  section{padding:3rem 1.1rem}
+  .btn-secondary:hover{background:var(--wood-dark);color:var(--cream);transform:translateY(-2px)}
+
+  .mascot-wrap{aspect-ratio:1/1;max-width:420px;margin:0 auto;width:100%;position:relative}
+  .mascot-parallax{will-change:transform;transition:transform .1s linear}
+  .mascot-svg{width:100%;height:100%;filter:drop-shadow(0 22px 32px rgba(74,46,28,.22));animation:wiggle 5s ease-in-out infinite;transform-origin:50% 90%}
+  @keyframes wiggle{0%,100%{transform:rotate(-1.4deg)}50%{transform:rotate(1.4deg)}}
+  .eye-group{transform-box:fill-box;transform-origin:center;animation:blink 6.5s ease-in-out infinite}
+  .eye-group.right{animation-delay:.05s}
+  @keyframes blink{0%,93%,100%{transform:scaleY(1)}95%,97%{transform:scaleY(.08)}}
+  .pupil{transition:transform .12s ease-out}
+
+  /* ===== Trust strip ===== */
+  .trust{padding:2rem 1.1rem 1.5rem}
+  .trust-grid{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr;gap:1rem}
+  @media(min-width:640px){.trust-grid{grid-template-columns:repeat(3,1fr);gap:1.4rem}}
+  .trust-item{padding:1.4rem;background:#fff;border:1px solid rgba(58,37,22,.07);border-radius:var(--radius);box-shadow:var(--shadow-sm);display:flex;flex-direction:column;gap:.2rem;transition:transform var(--t-fast),box-shadow var(--t-fast)}
+  .trust-item:hover{transform:translateY(-3px);box-shadow:var(--shadow)}
+  .trust-num{font-family:'Fraunces',serif;font-weight:900;font-size:clamp(2rem,3vw + 1rem,2.8rem);color:var(--wood-warm);line-height:1}
+  .trust-num .suf{font-size:.62em;color:var(--wood-mid);margin-left:.05em;font-weight:700}
+  .trust-label{color:#5a3d27;font-size:.95rem;font-weight:500}
+
+  /* ===== Sections ===== */
+  section{padding:3.2rem 1.1rem}
   .container{max-width:1100px;margin:0 auto}
-  /* Services */
-  .services-grid{display:grid;gap:1rem;grid-template-columns:1fr;margin-top:1.5rem}
+  @media(min-width:860px){section{padding:4.5rem 1.1rem}}
+
+  /* ===== Services ===== */
+  .services-grid{display:grid;gap:1rem;grid-template-columns:1fr;margin-top:1.8rem}
   @media(min-width:560px){.services-grid{grid-template-columns:1fr 1fr}}
-  @media(min-width:860px){.services-grid{grid-template-columns:repeat(3,1fr)}}
-  .service{background:#fff;border:1px solid rgba(58,37,22,.08);border-radius:16px;padding:1.4rem;display:flex;gap:1rem;align-items:flex-start;transition:transform .15s,box-shadow .15s}
-  .service:hover{transform:translateY(-3px);box-shadow:var(--shadow)}
-  .service-icon{flex:0 0 50px;height:50px;border-radius:12px;background:var(--cream-2);display:grid;place-items:center;color:var(--wood-warm)}
-  .service h3{margin:0 0 .25rem}
-  .service p{font-size:.93rem;color:#5a3d27;margin:0}
-  /* Calculator */
+  @media(min-width:860px){.services-grid{grid-template-columns:repeat(3,1fr);gap:1.2rem}}
+  .service{background:#fff;border:1px solid rgba(58,37,22,.07);border-radius:var(--radius);padding:1.5rem;display:flex;gap:1rem;align-items:flex-start;transition:transform var(--t-med),box-shadow var(--t-med),border-color var(--t-med);position:relative;overflow:hidden}
+  .service::before{content:"";position:absolute;inset:0;background:linear-gradient(135deg,transparent 0%,rgba(201,123,64,.05) 100%);opacity:0;transition:opacity var(--t-med);pointer-events:none}
+  .service:hover{transform:translateY(-4px);box-shadow:var(--shadow);border-color:rgba(201,123,64,.22)}
+  .service:hover::before{opacity:1}
+  .service-icon{flex:0 0 50px;height:50px;border-radius:12px;background:var(--cream-2);display:grid;place-items:center;color:var(--wood-warm);transition:transform var(--t-med),background var(--t-med)}
+  .service:hover .service-icon{transform:scale(1.06) rotate(-3deg);background:var(--cream-3)}
+  .service h3{margin:0 0 .25rem;position:relative}
+  .service p{font-size:.93rem;color:#5a3d27;margin:0;position:relative}
+
+  /* ===== Calculator ===== */
   .calc-section{background:linear-gradient(180deg,#f1e3c7,var(--cream));border-top:1px solid rgba(58,37,22,.08);border-bottom:1px solid rgba(58,37,22,.08)}
-  .calc-card{background:#fff;border-radius:20px;padding:1.5rem;box-shadow:var(--shadow);margin-top:1.5rem;border:1px solid rgba(58,37,22,.06)}
-  @media(min-width:700px){.calc-card{padding:2rem}}
-  .form-row{display:grid;gap:1rem;grid-template-columns:1fr;margin-bottom:1rem}
+  .calc-card{background:#fff;border-radius:var(--radius-lg);padding:1.6rem;box-shadow:var(--shadow);margin-top:1.5rem;border:1px solid rgba(58,37,22,.06)}
+  @media(min-width:700px){.calc-card{padding:2.2rem}}
+  .form-row{display:grid;gap:1rem;grid-template-columns:1fr;margin-bottom:1.1rem}
   @media(min-width:560px){.form-row.cols-2{grid-template-columns:1fr 1fr}}
   label{display:block;font-weight:600;font-size:.9rem;margin-bottom:.4rem;color:var(--wood-dark)}
-  input[type=text],input[type=number],input[type=email],input[type=tel],select,textarea{width:100%;padding:.85rem 1rem;border-radius:10px;border:2px solid rgba(58,37,22,.14);background:var(--cream);font-family:inherit;font-size:1rem;color:var(--wood-dark);transition:border-color .15s;-webkit-appearance:none;appearance:none}
-  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--wood-warm)}
-  textarea{resize:vertical;min-height:88px}
-  .type-pills{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1.2rem}
-  .type-pill{padding:.65rem 1.05rem;border-radius:999px;border:2px solid rgba(58,37,22,.16);background:var(--cream);color:var(--wood-dark);font-weight:600;font-size:.95rem;cursor:pointer;transition:all .15s;font-family:inherit}
-  .type-pill:hover{border-color:var(--wood-warm)}
-  .type-pill.active{background:var(--wood-warm);color:#fff;border-color:var(--wood-warm);box-shadow:0 4px 12px rgba(201,123,64,.3)}
-  .result{margin-top:1.2rem;padding:1.3rem 1.4rem;border-radius:14px;background:linear-gradient(135deg,var(--wood-light),#f3deb6);display:none;border:1px solid rgba(139,90,43,.2)}
-  .result.show{display:block;animation:slideIn .3s ease}
-  @keyframes slideIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+  input[type=text],input[type=number],input[type=email],input[type=tel],select,textarea{width:100%;padding:.95rem 1rem;border-radius:var(--radius-sm);border:2px solid rgba(58,37,22,.14);background:var(--cream);font-family:inherit;font-size:1rem;color:var(--wood-dark);transition:border-color var(--t-fast),box-shadow var(--t-fast);-webkit-appearance:none;appearance:none;min-height:48px}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--wood-warm);box-shadow:0 0 0 4px rgba(201,123,64,.16)}
+  textarea{resize:vertical;min-height:96px}
+
+  .type-pills{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1.3rem}
+  .type-pill{padding:.7rem 1.1rem;border-radius:999px;border:2px solid rgba(58,37,22,.16);background:var(--cream);color:var(--wood-dark);font-weight:600;font-size:.95rem;cursor:pointer;transition:all var(--t-fast);font-family:inherit;min-height:44px;position:relative;overflow:hidden}
+  .type-pill::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at center,rgba(201,123,64,.35),transparent 60%);opacity:0;border-radius:inherit;pointer-events:none}
+  .type-pill:hover{border-color:var(--wood-warm);transform:translateY(-1px)}
+  .type-pill.active{background:var(--wood-warm);color:#fff;border-color:var(--wood-warm);box-shadow:0 6px 16px rgba(201,123,64,.32)}
+  .type-pill.tap-pulse::before{animation:tap-pulse .55s ease-out}
+  @keyframes tap-pulse{0%{opacity:1;transform:scale(.5)}100%{opacity:0;transform:scale(1.3)}}
+
+  .result{margin-top:1.3rem;padding:1.4rem 1.5rem;border-radius:var(--radius);background:linear-gradient(135deg,var(--wood-light),#f3deb6);display:none;border:1px solid rgba(139,90,43,.2)}
+  .result.show{display:block;animation:slideIn .4s ease}
+  @keyframes slideIn{from{opacity:0;transform:translateY(-8px) scale(.98)}to{opacity:1;transform:none}}
   .result-label{font-size:.82rem;color:var(--wood-mid);font-weight:700;text-transform:uppercase;letter-spacing:.08em}
-  .result-price{font-family:'Fraunces',serif;font-size:clamp(1.6rem,2vw + 1rem,2.2rem);font-weight:900;color:var(--wood-dark);margin:.2rem 0 .4rem;line-height:1.1}
-  .result-note{font-size:.86rem;color:#5a3d27;line-height:1.5}
-  /* Gallery */
-  .gallery-grid{display:grid;gap:.8rem;grid-template-columns:1fr 1fr;margin-top:1.5rem}
+  .result-price{font-family:'Fraunces',serif;font-size:clamp(1.7rem,2vw + 1rem,2.4rem);font-weight:900;color:var(--wood-dark);margin:.2rem 0 .4rem;line-height:1.1}
+  .result-note{font-size:.88rem;color:#5a3d27;line-height:1.55}
+
+  /* ===== Process ===== */
+  .process-section{background:linear-gradient(180deg,var(--cream),#f5e8c9)}
+  .process-list{list-style:none;padding:0;margin:1.8rem 0 0;display:grid;gap:1rem;grid-template-columns:1fr}
+  @media(min-width:640px){.process-list{grid-template-columns:repeat(2,1fr)}}
+  @media(min-width:960px){.process-list{grid-template-columns:repeat(3,1fr);gap:1.4rem}}
+  .process-step{background:#fff;border:1px solid rgba(58,37,22,.07);border-radius:var(--radius);padding:1.5rem;position:relative;transition:transform var(--t-med),box-shadow var(--t-med)}
+  .process-step:hover{transform:translateY(-3px);box-shadow:var(--shadow)}
+  .step-num{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:50%;background:var(--wood-warm);color:#fff;font-family:'Fraunces',serif;font-weight:900;font-size:1.1rem;margin-bottom:.7rem;box-shadow:0 4px 12px rgba(201,123,64,.32)}
+  .process-step h3{margin:0 0 .35rem;font-size:1.12rem}
+  .process-step p{margin:0;font-size:.93rem;color:#5a3d27}
+  .step-time{display:inline-block;font-size:.78rem;color:var(--wood-mid);margin-top:.7rem;padding:.22rem .55rem;background:var(--cream-2);border-radius:999px;font-weight:600}
+
+  /* ===== Gallery ===== */
+  .gallery-grid{display:grid;gap:.85rem;grid-template-columns:1fr 1fr;margin-top:1.8rem}
   @media(min-width:700px){.gallery-grid{grid-template-columns:repeat(4,1fr)}}
-  .gallery-tile{aspect-ratio:1/1;border-radius:14px;background:linear-gradient(135deg,var(--cream-2),#ead9b4);display:grid;place-items:center;color:var(--wood-mid);font-size:.85rem;font-weight:600;border:2px dashed rgba(139,90,43,.35);text-align:center;padding:.5rem}
-  /* Contact */
-  .contact-wrap{display:grid;gap:1.5rem;grid-template-columns:1fr;margin-top:1.5rem}
+  .gallery-tile{aspect-ratio:1/1;border-radius:var(--radius);background:linear-gradient(135deg,var(--cream-2),#ead9b4);display:grid;place-items:center;color:var(--wood-mid);font-size:.85rem;font-weight:600;border:2px dashed rgba(139,90,43,.32);text-align:center;padding:.7rem;transition:transform var(--t-med),background var(--t-med)}
+  .gallery-tile:hover{transform:translateY(-3px);background:linear-gradient(135deg,#ead9b4,var(--cream-3))}
+
+  /* ===== FAQ ===== */
+  .faq-list{margin-top:1.8rem;display:flex;flex-direction:column;gap:.65rem;max-width:780px}
+  .faq{background:#fff;border:1px solid rgba(58,37,22,.08);border-radius:var(--radius);overflow:hidden;transition:box-shadow var(--t-med),border-color var(--t-med)}
+  .faq[open]{box-shadow:var(--shadow);border-color:rgba(201,123,64,.25)}
+  .faq summary{padding:1.15rem 1.4rem;cursor:pointer;font-weight:700;color:var(--wood-dark);display:flex;justify-content:space-between;align-items:center;gap:1rem;list-style:none;font-size:1.02rem;min-height:48px}
+  .faq summary::-webkit-details-marker{display:none}
+  .faq summary::after{content:"";flex:0 0 22px;height:22px;background:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='%238b5a2b' stroke-width='2.5' stroke-linecap='round'><path d='M6 9l6 6 6-6'/></svg>") center/contain no-repeat;transition:transform var(--t-med)}
+  .faq[open] summary::after{transform:rotate(-180deg)}
+  .faq-body{padding:0 1.4rem 1.3rem;color:#5a3d27;font-size:.96rem;line-height:1.6}
+  .faq-body p:last-child{margin-bottom:0}
+
+  /* ===== Contact ===== */
+  .contact-wrap{display:grid;gap:1.5rem;grid-template-columns:1fr;margin-top:1.8rem}
   @media(min-width:760px){.contact-wrap{grid-template-columns:1.1fr 1fr}}
-  .contact-card{background:var(--wood-dark);color:var(--cream);border-radius:20px;padding:2rem;box-shadow:var(--shadow);position:relative;overflow:hidden}
-  .contact-card::before{content:"";position:absolute;top:-30px;right:-30px;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,rgba(201,123,64,.4),transparent 70%)}
+  .contact-card{background:var(--wood-dark);color:var(--cream);border-radius:var(--radius-lg);padding:2rem;box-shadow:var(--shadow);position:relative;overflow:hidden}
+  .contact-card::before{content:"";position:absolute;top:-30px;right:-30px;width:160px;height:160px;border-radius:50%;background:radial-gradient(circle,rgba(201,123,64,.4),transparent 70%);pointer-events:none}
   .contact-card h3{color:var(--cream);position:relative}
-  .contact-card a{color:var(--wood-light);text-decoration:none;font-weight:700}
-  .contact-card a:hover{text-decoration:underline}
-  .contact-card .info-label{font-weight:700;color:var(--wood-light);font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;margin-top:1.4rem;margin-bottom:.2rem;position:relative}
-  .quote{margin-top:1.8rem;padding-top:1.2rem;border-top:1px solid rgba(232,201,161,.2);font-size:.92rem;font-style:italic;opacity:.92;position:relative}
-  /* Footer */
-  footer{padding:2.2rem 1.1rem;text-align:center;background:#2a1a0e;color:rgba(251,246,238,.78);font-size:.92rem}
+  .contact-card a{color:var(--wood-light);text-decoration:none;font-weight:700;border-bottom:1px solid transparent;transition:border-color var(--t-fast)}
+  .contact-card a:hover{border-color:var(--wood-light)}
+  .contact-card .info-label{font-weight:700;color:var(--wood-light);font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;margin:1.4rem 0 .25rem;position:relative}
+  .quote{margin-top:1.8rem;padding-top:1.2rem;border-top:1px solid rgba(232,201,161,.2);font-size:.95rem;font-style:italic;opacity:.92;position:relative}
+
+  /* ===== Sticky mobile CTA ===== */
+  .sticky-cta{position:fixed;bottom:1rem;left:1rem;right:1rem;z-index:40;display:none;align-items:center;justify-content:center;gap:.5rem;padding:1rem 1.3rem;border-radius:14px;background:var(--wood-dark);color:var(--cream);text-decoration:none;font-weight:700;font-size:1rem;box-shadow:var(--shadow-lg);font-family:inherit;opacity:0;transform:translateY(20px);transition:opacity var(--t-med),transform var(--t-med);min-height:52px}
+  .sticky-cta.show{opacity:1;transform:none}
+  @media(max-width:760px){.sticky-cta[data-visible="true"]{display:flex}}
+
+  /* ===== Footer ===== */
+  footer{padding:2.4rem 1.1rem 5rem;text-align:center;background:var(--wood-darker);color:rgba(251,246,238,.78);font-size:.92rem}
+  @media(min-width:761px){footer{padding-bottom:2.4rem}}
   footer strong{color:var(--cream)}
-  /* Background grain accent */
-  .grain{background-image:repeating-linear-gradient(180deg,rgba(74,46,28,.03) 0 1px,transparent 1px 7px),repeating-linear-gradient(180deg,rgba(74,46,28,.018) 0 1px,transparent 1px 19px)}
+  .made-by-hand{display:inline-flex;align-items:center;gap:.4rem;margin-top:.9rem;padding:.42rem .9rem;border-radius:999px;background:rgba(232,201,161,.1);font-size:.8rem;color:var(--wood-light)}
+
+  /* ===== Reduced motion ===== */
+  @media (prefers-reduced-motion: reduce){
+    *,*::before,*::after{animation-duration:.001s !important;animation-iteration-count:1 !important;transition-duration:.001s !important;scroll-behavior:auto !important}
+    .reveal{opacity:1 !important;transform:none !important}
+    .mascot-svg{animation:none !important}
+    .eye-group{animation:none !important}
+  }
 </style>
 </head>
 <body>
@@ -156,7 +254,7 @@
 <!-- HERO -->
 <section class="hero">
   <div class="hero-inner">
-    <div>
+    <div class="reveal">
       <p class="eyebrow">Tibi műhelye • Faragott fa, ahogy kell</p>
       <h1>Faház, előtető, kutyaház — <em>kézzel, fából, becsülettel.</em></h1>
       <p class="lead">Előtetők, kerti faházak, kutyaházak, tárolók, ajtók-ablakok. Mondd el mit szeretnél, és <strong>1 percen belül kapsz egy becsült árat</strong> — feleslegesen senki sem rohan helyszínre.</p>
@@ -168,131 +266,132 @@
         <a class="btn btn-secondary" href="#munkaim">Munkáim</a>
       </div>
     </div>
-    <div class="mascot-wrap">
-      <svg class="mascot-svg" viewBox="0 0 400 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Fakukac — fából faragott kabala kukac">
-        <defs>
-          <radialGradient id="woodA" cx="0.35" cy="0.28" r="0.9">
-            <stop offset="0%" stop-color="#f0c189"/>
-            <stop offset="55%" stop-color="#c97b40"/>
-            <stop offset="100%" stop-color="#7a3f1c"/>
-          </radialGradient>
-          <radialGradient id="woodB" cx="0.35" cy="0.28" r="0.9">
-            <stop offset="0%" stop-color="#e8b884"/>
-            <stop offset="55%" stop-color="#b56b35"/>
-            <stop offset="100%" stop-color="#6b3a17"/>
-          </radialGradient>
-          <radialGradient id="woodHead" cx="0.42" cy="0.3" r="0.95">
-            <stop offset="0%" stop-color="#f4cb98"/>
-            <stop offset="58%" stop-color="#cc7e42"/>
-            <stop offset="100%" stop-color="#7a3f1c"/>
-          </radialGradient>
-          <pattern id="grainPat" patternUnits="userSpaceOnUse" width="120" height="6" patternTransform="rotate(8)">
-            <line x1="0" y1="3" x2="120" y2="3" stroke="rgba(74,46,28,.18)" stroke-width=".55"/>
-            <line x1="0" y1="0.4" x2="120" y2="0.9" stroke="rgba(74,46,28,.1)" stroke-width=".4"/>
-            <line x1="0" y1="4.4" x2="120" y2="4.9" stroke="rgba(74,46,28,.07)" stroke-width=".3"/>
-          </pattern>
-        </defs>
+    <div class="mascot-wrap reveal" style="transition-delay:120ms">
+      <div class="mascot-parallax" id="parallax">
+        <svg id="mascot" class="mascot-svg" viewBox="0 0 400 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Fakukac — fából faragott kabala kukac">
+          <defs>
+            <radialGradient id="woodA" cx="0.35" cy="0.28" r="0.9"><stop offset="0%" stop-color="#f0c189"/><stop offset="55%" stop-color="#c97b40"/><stop offset="100%" stop-color="#7a3f1c"/></radialGradient>
+            <radialGradient id="woodB" cx="0.35" cy="0.28" r="0.9"><stop offset="0%" stop-color="#e8b884"/><stop offset="55%" stop-color="#b56b35"/><stop offset="100%" stop-color="#6b3a17"/></radialGradient>
+            <radialGradient id="woodHead" cx="0.42" cy="0.3" r="0.95"><stop offset="0%" stop-color="#f4cb98"/><stop offset="58%" stop-color="#cc7e42"/><stop offset="100%" stop-color="#7a3f1c"/></radialGradient>
+            <pattern id="grainPat" patternUnits="userSpaceOnUse" width="120" height="6" patternTransform="rotate(8)">
+              <line x1="0" y1="3" x2="120" y2="3" stroke="rgba(74,46,28,.18)" stroke-width=".55"/>
+              <line x1="0" y1="0.4" x2="120" y2="0.9" stroke="rgba(74,46,28,.1)" stroke-width=".4"/>
+              <line x1="0" y1="4.4" x2="120" y2="4.9" stroke="rgba(74,46,28,.07)" stroke-width=".3"/>
+            </pattern>
+          </defs>
 
-        <!-- ground shadow -->
-        <ellipse cx="200" cy="325" rx="160" ry="14" fill="rgba(74,46,28,.18)"/>
+          <ellipse cx="200" cy="325" rx="160" ry="14" fill="rgba(74,46,28,.18)"/>
 
-        <!-- wood shaving curl (charm) -->
-        <g transform="translate(28 285)" opacity=".7">
-          <path d="M0 12 Q12 -4 28 6 Q40 14 24 22 Q14 24 10 18 Q8 12 18 10" stroke="#c97b40" stroke-width="2.6" fill="none" stroke-linecap="round"/>
-          <path d="M6 16 Q14 8 22 12" stroke="#a05a2a" stroke-width="1.2" fill="none" stroke-linecap="round" opacity=".7"/>
-        </g>
+          <!-- shaving curl -->
+          <g transform="translate(28 285)" opacity=".7">
+            <path d="M0 12 Q12 -4 28 6 Q40 14 24 22 Q14 24 10 18 Q8 12 18 10" stroke="#c97b40" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+            <path d="M6 16 Q14 8 22 12" stroke="#a05a2a" stroke-width="1.2" fill="none" stroke-linecap="round" opacity=".7"/>
+          </g>
 
-        <!-- TAIL -->
-        <g>
-          <ellipse cx="60" cy="248" rx="40" ry="38" fill="url(#woodA)"/>
-          <ellipse cx="60" cy="248" rx="40" ry="38" fill="url(#grainPat)" opacity=".55"/>
-          <ellipse cx="60" cy="248" rx="40" ry="38" fill="none" stroke="#5a3219" stroke-width="1.4" opacity=".4"/>
-          <ellipse cx="48" cy="234" rx="14" ry="9" fill="#fce8c8" opacity=".4"/>
-          <path d="M24 254 Q60 240 96 254" stroke="#5a3219" stroke-width="1.1" fill="none" stroke-linecap="round" opacity=".5"/>
-          <path d="M32 268 Q60 260 88 268" stroke="#5a3219" stroke-width=".9" fill="none" stroke-linecap="round" opacity=".4"/>
-          <ellipse cx="92" cy="246" rx="9" ry="22" fill="#3a1f0e" opacity=".22"/>
-        </g>
+          <!-- TAIL -->
+          <g>
+            <ellipse cx="60" cy="248" rx="40" ry="38" fill="url(#woodA)"/>
+            <ellipse cx="60" cy="248" rx="40" ry="38" fill="url(#grainPat)" opacity=".55"/>
+            <ellipse cx="60" cy="248" rx="40" ry="38" fill="none" stroke="#5a3219" stroke-width="1.4" opacity=".4"/>
+            <ellipse cx="48" cy="234" rx="14" ry="9" fill="#fce8c8" opacity=".4"/>
+            <path d="M24 254 Q60 240 96 254" stroke="#5a3219" stroke-width="1.1" fill="none" stroke-linecap="round" opacity=".5"/>
+            <path d="M32 268 Q60 260 88 268" stroke="#5a3219" stroke-width=".9" fill="none" stroke-linecap="round" opacity=".4"/>
+            <ellipse cx="92" cy="246" rx="9" ry="22" fill="#3a1f0e" opacity=".22"/>
+          </g>
+          <!-- SEG 2 -->
+          <g>
+            <ellipse cx="125" cy="208" rx="44" ry="42" fill="url(#woodB)"/>
+            <ellipse cx="125" cy="208" rx="44" ry="42" fill="url(#grainPat)" opacity=".5"/>
+            <ellipse cx="125" cy="208" rx="44" ry="42" fill="none" stroke="#4a2a13" stroke-width="1.4" opacity=".4"/>
+            <ellipse cx="112" cy="194" rx="15" ry="10" fill="#fce8c8" opacity=".38"/>
+            <path d="M85 215 Q125 200 165 215" stroke="#4a2a13" stroke-width="1.1" fill="none" stroke-linecap="round" opacity=".5"/>
+            <ellipse cx="166" cy="205" rx="9" ry="22" fill="#3a1f0e" opacity=".22"/>
+          </g>
+          <!-- SEG 3 (peak) -->
+          <g>
+            <ellipse cx="198" cy="180" rx="48" ry="46" fill="url(#woodA)"/>
+            <ellipse cx="198" cy="180" rx="48" ry="46" fill="url(#grainPat)" opacity=".48"/>
+            <ellipse cx="198" cy="180" rx="48" ry="46" fill="none" stroke="#4a2a13" stroke-width="1.4" opacity=".4"/>
+            <ellipse cx="184" cy="166" rx="16" ry="10" fill="#fce8c8" opacity=".4"/>
+            <path d="M156 188 Q198 172 240 188" stroke="#4a2a13" stroke-width="1.1" fill="none" stroke-linecap="round" opacity=".5"/>
+            <ellipse cx="215" cy="195" rx="3.2" ry="2.4" fill="#5a3219" opacity=".55"/>
+            <ellipse cx="215" cy="195" rx="1.6" ry="1.2" fill="#3a1f0e" opacity=".7"/>
+            <ellipse cx="240" cy="178" rx="9" ry="22" fill="#3a1f0e" opacity=".22"/>
+          </g>
+          <!-- SEG 4 -->
+          <g>
+            <ellipse cx="272" cy="200" rx="50" ry="48" fill="url(#woodB)"/>
+            <ellipse cx="272" cy="200" rx="50" ry="48" fill="url(#grainPat)" opacity=".46"/>
+            <ellipse cx="272" cy="200" rx="50" ry="48" fill="none" stroke="#3a1f0e" stroke-width="1.4" opacity=".4"/>
+            <ellipse cx="258" cy="184" rx="16" ry="10" fill="#fce8c8" opacity=".38"/>
+            <path d="M228 208 Q272 192 316 208" stroke="#3a1f0e" stroke-width="1.1" fill="none" stroke-linecap="round" opacity=".5"/>
+            <path d="M250 220 L257 213" stroke="#3a1f0e" stroke-width=".7" opacity=".5"/>
+            <path d="M254 226 L260 220" stroke="#3a1f0e" stroke-width=".55" opacity=".4"/>
+            <ellipse cx="318" cy="200" rx="9" ry="22" fill="#3a1f0e" opacity=".22"/>
+          </g>
+          <!-- HEAD -->
+          <g>
+            <ellipse cx="345" cy="218" rx="55" ry="53" fill="url(#woodHead)"/>
+            <ellipse cx="345" cy="218" rx="55" ry="53" fill="url(#grainPat)" opacity=".38"/>
+            <ellipse cx="345" cy="218" rx="55" ry="53" fill="none" stroke="#3a1f0e" stroke-width="1.6" opacity=".42"/>
+            <ellipse cx="328" cy="200" rx="20" ry="13" fill="#fce8c8" opacity=".42"/>
+            <!-- ANTENNAE -->
+            <path d="M325 173 Q314 145 322 128" stroke="#3a1f0e" stroke-width="3" fill="none" stroke-linecap="round"/>
+            <path d="M322 128 Q312 122 314 112 Q322 108 326 116 Q328 124 322 128 Z" fill="#7a9456" stroke="#4d5d35" stroke-width=".8"/>
+            <line x1="322" y1="128" x2="320" y2="118" stroke="#4d5d35" stroke-width=".7" opacity=".7"/>
+            <path d="M362 172 Q373 144 365 127" stroke="#3a1f0e" stroke-width="3" fill="none" stroke-linecap="round"/>
+            <path d="M365 127 Q375 121 373 111 Q365 107 361 115 Q359 123 365 127 Z" fill="#7a9456" stroke="#4d5d35" stroke-width=".8"/>
+            <line x1="365" y1="127" x2="367" y2="117" stroke="#4d5d35" stroke-width=".7" opacity=".7"/>
+            <!-- EYES (with blink groups + pupils) -->
+            <g class="eye-group left">
+              <ellipse cx="332" cy="214" rx="11" ry="12" fill="#fbf6ee"/>
+              <ellipse cx="332" cy="214" rx="11" ry="12" fill="none" stroke="#5a3219" stroke-width=".9" opacity=".5"/>
+              <g class="pupil pupil-left">
+                <circle cx="334" cy="216" r="6" fill="#3a2516"/>
+                <circle cx="336" cy="214" r="2" fill="#fbf6ee"/>
+                <circle cx="332" cy="218" r="1" fill="#fbf6ee" opacity=".7"/>
+              </g>
+            </g>
+            <g class="eye-group right">
+              <ellipse cx="362" cy="214" rx="11" ry="12" fill="#fbf6ee"/>
+              <ellipse cx="362" cy="214" rx="11" ry="12" fill="none" stroke="#5a3219" stroke-width=".9" opacity=".5"/>
+              <g class="pupil pupil-right">
+                <circle cx="364" cy="216" r="6" fill="#3a2516"/>
+                <circle cx="366" cy="214" r="2" fill="#fbf6ee"/>
+                <circle cx="362" cy="218" r="1" fill="#fbf6ee" opacity=".7"/>
+              </g>
+            </g>
+            <!-- CHEEKS + SMILE -->
+            <ellipse cx="318" cy="240" rx="8.5" ry="5" fill="#d97757" opacity=".5"/>
+            <ellipse cx="378" cy="240" rx="8.5" ry="5" fill="#d97757" opacity=".5"/>
+            <path d="M335 246 Q347 258 359 246" stroke="#3a2516" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+            <rect x="345" y="250" width="3.2" height="4" rx="1" fill="#fbf6ee" stroke="#3a2516" stroke-width=".5"/>
+          </g>
+          <!-- feet nubs -->
+          <ellipse cx="60" cy="289" rx="5" ry="3" fill="#5a3219" opacity=".55"/>
+          <ellipse cx="125" cy="252" rx="5" ry="3" fill="#5a3219" opacity=".55"/>
+          <ellipse cx="198" cy="228" rx="5" ry="3" fill="#5a3219" opacity=".55"/>
+          <ellipse cx="272" cy="250" rx="5" ry="3" fill="#5a3219" opacity=".55"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+</section>
 
-        <!-- SEGMENT 2 -->
-        <g>
-          <ellipse cx="125" cy="208" rx="44" ry="42" fill="url(#woodB)"/>
-          <ellipse cx="125" cy="208" rx="44" ry="42" fill="url(#grainPat)" opacity=".5"/>
-          <ellipse cx="125" cy="208" rx="44" ry="42" fill="none" stroke="#4a2a13" stroke-width="1.4" opacity=".4"/>
-          <ellipse cx="112" cy="194" rx="15" ry="10" fill="#fce8c8" opacity=".38"/>
-          <path d="M85 215 Q125 200 165 215" stroke="#4a2a13" stroke-width="1.1" fill="none" stroke-linecap="round" opacity=".5"/>
-          <ellipse cx="166" cy="205" rx="9" ry="22" fill="#3a1f0e" opacity=".22"/>
-        </g>
-
-        <!-- SEGMENT 3 — peak of arch -->
-        <g>
-          <ellipse cx="198" cy="180" rx="48" ry="46" fill="url(#woodA)"/>
-          <ellipse cx="198" cy="180" rx="48" ry="46" fill="url(#grainPat)" opacity=".48"/>
-          <ellipse cx="198" cy="180" rx="48" ry="46" fill="none" stroke="#4a2a13" stroke-width="1.4" opacity=".4"/>
-          <ellipse cx="184" cy="166" rx="16" ry="10" fill="#fce8c8" opacity=".4"/>
-          <path d="M156 188 Q198 172 240 188" stroke="#4a2a13" stroke-width="1.1" fill="none" stroke-linecap="round" opacity=".5"/>
-          <!-- knot in wood -->
-          <ellipse cx="215" cy="195" rx="3.2" ry="2.4" fill="#5a3219" opacity=".55"/>
-          <ellipse cx="215" cy="195" rx="1.6" ry="1.2" fill="#3a1f0e" opacity=".7"/>
-          <ellipse cx="240" cy="178" rx="9" ry="22" fill="#3a1f0e" opacity=".22"/>
-        </g>
-
-        <!-- SEGMENT 4 -->
-        <g>
-          <ellipse cx="272" cy="200" rx="50" ry="48" fill="url(#woodB)"/>
-          <ellipse cx="272" cy="200" rx="50" ry="48" fill="url(#grainPat)" opacity=".46"/>
-          <ellipse cx="272" cy="200" rx="50" ry="48" fill="none" stroke="#3a1f0e" stroke-width="1.4" opacity=".4"/>
-          <ellipse cx="258" cy="184" rx="16" ry="10" fill="#fce8c8" opacity=".38"/>
-          <path d="M228 208 Q272 192 316 208" stroke="#3a1f0e" stroke-width="1.1" fill="none" stroke-linecap="round" opacity=".5"/>
-          <!-- knife/carving marks -->
-          <path d="M250 220 L257 213" stroke="#3a1f0e" stroke-width=".7" opacity=".5"/>
-          <path d="M254 226 L260 220" stroke="#3a1f0e" stroke-width=".55" opacity=".4"/>
-          <ellipse cx="318" cy="200" rx="9" ry="22" fill="#3a1f0e" opacity=".22"/>
-        </g>
-
-        <!-- HEAD -->
-        <g>
-          <ellipse cx="345" cy="218" rx="55" ry="53" fill="url(#woodHead)"/>
-          <ellipse cx="345" cy="218" rx="55" ry="53" fill="url(#grainPat)" opacity=".38"/>
-          <ellipse cx="345" cy="218" rx="55" ry="53" fill="none" stroke="#3a1f0e" stroke-width="1.6" opacity=".42"/>
-          <ellipse cx="328" cy="200" rx="20" ry="13" fill="#fce8c8" opacity=".42"/>
-
-          <!-- ANTENNAE -->
-          <path d="M325 173 Q314 145 322 128" stroke="#3a1f0e" stroke-width="3" fill="none" stroke-linecap="round"/>
-          <path d="M322 128 Q312 122 314 112 Q322 108 326 116 Q328 124 322 128 Z" fill="#7a9456" stroke="#4d5d35" stroke-width=".8"/>
-          <line x1="322" y1="128" x2="320" y2="118" stroke="#4d5d35" stroke-width=".7" opacity=".7"/>
-
-          <path d="M362 172 Q373 144 365 127" stroke="#3a1f0e" stroke-width="3" fill="none" stroke-linecap="round"/>
-          <path d="M365 127 Q375 121 373 111 Q365 107 361 115 Q359 123 365 127 Z" fill="#7a9456" stroke="#4d5d35" stroke-width=".8"/>
-          <line x1="365" y1="127" x2="367" y2="117" stroke="#4d5d35" stroke-width=".7" opacity=".7"/>
-
-          <!-- EYES -->
-          <ellipse cx="332" cy="214" rx="11" ry="12" fill="#fbf6ee"/>
-          <ellipse cx="332" cy="214" rx="11" ry="12" fill="none" stroke="#5a3219" stroke-width=".9" opacity=".5"/>
-          <circle cx="334" cy="216" r="6" fill="#3a2516"/>
-          <circle cx="336" cy="214" r="2" fill="#fbf6ee"/>
-          <circle cx="332" cy="218" r="1" fill="#fbf6ee" opacity=".7"/>
-
-          <ellipse cx="362" cy="214" rx="11" ry="12" fill="#fbf6ee"/>
-          <ellipse cx="362" cy="214" rx="11" ry="12" fill="none" stroke="#5a3219" stroke-width=".9" opacity=".5"/>
-          <circle cx="364" cy="216" r="6" fill="#3a2516"/>
-          <circle cx="366" cy="214" r="2" fill="#fbf6ee"/>
-          <circle cx="362" cy="218" r="1" fill="#fbf6ee" opacity=".7"/>
-
-          <!-- CHEEKS -->
-          <ellipse cx="318" cy="240" rx="8.5" ry="5" fill="#d97757" opacity=".5"/>
-          <ellipse cx="378" cy="240" rx="8.5" ry="5" fill="#d97757" opacity=".5"/>
-
-          <!-- SMILE with little tooth -->
-          <path d="M335 246 Q347 258 359 246" stroke="#3a2516" stroke-width="2.6" fill="none" stroke-linecap="round"/>
-          <rect x="345" y="250" width="3.2" height="4" rx="1" fill="#fbf6ee" stroke="#3a2516" stroke-width=".5"/>
-        </g>
-
-        <!-- tiny nubby feet -->
-        <ellipse cx="60" cy="289" rx="5" ry="3" fill="#5a3219" opacity=".55"/>
-        <ellipse cx="125" cy="252" rx="5" ry="3" fill="#5a3219" opacity=".55"/>
-        <ellipse cx="198" cy="228" rx="5" ry="3" fill="#5a3219" opacity=".55"/>
-        <ellipse cx="272" cy="250" rx="5" ry="3" fill="#5a3219" opacity=".55"/>
-      </svg>
+<!-- TRUST STRIP — Tibi: a számokat itt írd át, ha pontosabbra akarod -->
+<section class="trust" aria-label="Számokban">
+  <div class="trust-grid">
+    <div class="trust-item reveal">
+      <div class="trust-num"><span data-counter="8">0</span></div>
+      <div class="trust-label">év fa-faragó tapasztalat</div>
+    </div>
+    <div class="trust-item reveal" style="transition-delay:80ms">
+      <div class="trust-num"><span data-counter="100">0</span><span class="suf">%</span></div>
+      <div class="trust-label">kézi munka, gépsorok nélkül</div>
+    </div>
+    <div class="trust-item reveal" style="transition-delay:160ms">
+      <div class="trust-num"><span data-counter="12">0</span><span class="suf">hó</span></div>
+      <div class="trust-label">garancia minden munkára</div>
     </div>
   </div>
 </section>
@@ -300,30 +399,30 @@
 <!-- SERVICES -->
 <section id="szolgaltatasok">
   <div class="container">
-    <p class="eyebrow">Mit készítek</p>
-    <h2>Minden, amit fából érdemes — kézzel, garanciával.</h2>
+    <p class="eyebrow reveal">Mit készítek</p>
+    <h2 class="reveal">Minden, amit fából érdemes — kézzel, garanciával.</h2>
     <div class="services-grid">
-      <div class="service">
+      <div class="service reveal">
         <div class="service-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12 12 4l9 8"/><path d="M5 12v8h14v-8"/></svg></div>
         <div><h3>Előtetők</h3><p>Bejárat, kocsi, terasz fölé. Méretre, faragott gerendákkal.</p></div>
       </div>
-      <div class="service">
+      <div class="service reveal" style="transition-delay:60ms">
         <div class="service-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="8" width="18" height="13" rx="1"/><path d="M3 8 12 2l9 6"/><path d="M10 21v-6h4v6"/></svg></div>
         <div><h3>Faházak</h3><p>Kerti pihenő, üdülő, vendégház. Saját tervből vagy a tiédből.</p></div>
       </div>
-      <div class="service">
+      <div class="service reveal" style="transition-delay:120ms">
         <div class="service-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 21V11l7-5 7 5v10z"/><circle cx="12" cy="14" r="2"/></svg></div>
         <div><h3>Kutyaházak</h3><p>Strapabíró, szigetelt — minden testméretre. A kutyusok is díjazzák.</p></div>
       </div>
-      <div class="service">
+      <div class="service reveal">
         <div class="service-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="15" rx="1"/><path d="M3 11h18M3 6 12 2l9 4"/></svg></div>
         <div><h3>Tárolók</h3><p>Szerszám, kerti bútor, fa — biztonságos, tetős, fagytűrő.</p></div>
       </div>
-      <div class="service">
+      <div class="service reveal" style="transition-delay:60ms">
         <div class="service-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="3" width="12" height="18" rx="1"/><circle cx="14.5" cy="12" r=".7" fill="currentColor"/></svg></div>
         <div><h3>Ajtók</h3><p>Bejárati, beltéri, kerti — illesztve a helyszínre.</p></div>
       </div>
-      <div class="service">
+      <div class="service reveal" style="transition-delay:120ms">
         <div class="service-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="1"/><path d="M4 12h16M12 4v16"/></svg></div>
         <div><h3>Ablakok</h3><p>Faházra, melléképületre. Hőszigetelt is, ha kell.</p></div>
       </div>
@@ -334,11 +433,11 @@
 <!-- CALCULATOR -->
 <section class="calc-section" id="kalkulator">
   <div class="container">
-    <p class="eyebrow">1 perces árkalkulátor</p>
-    <h2>Mondd el mit szeretnél — kapsz egy becsült árat.</h2>
-    <p style="max-width:60ch">Válaszd ki a típust, írd be a méreteket és hogy hol épülne — kapsz egy <strong>becsült árösávot</strong>. Pontos ajánlat helyszíni felmérés után, de ezzel már tudod a nagyságrendet.</p>
+    <p class="eyebrow reveal">1 perces árkalkulátor</p>
+    <h2 class="reveal">Mondd el mit szeretnél — kapsz egy becsült árat.</h2>
+    <p class="reveal" style="max-width:60ch">Válaszd ki a típust, írd be a méreteket és hogy hol épülne — kapsz egy <strong>becsült árösávot</strong>. Pontos ajánlat helyszíni felmérés után, de ezzel már tudod a nagyságrendet.</p>
 
-    <div class="calc-card">
+    <div class="calc-card reveal">
       <label>Mit építenél?</label>
       <div class="type-pills" id="type-pills">
         <button type="button" class="type-pill active" data-type="eloteto">Előtető</button>
@@ -350,32 +449,15 @@
       </div>
 
       <div class="form-row cols-2" id="dims-row">
-        <div>
-          <label for="dim-w">Szélesség (m)</label>
-          <input type="number" id="dim-w" min=".5" max="20" step=".1" value="3" inputmode="decimal">
-        </div>
-        <div>
-          <label for="dim-l">Hosszúság / mélység (m)</label>
-          <input type="number" id="dim-l" min=".5" max="20" step=".1" value="4" inputmode="decimal">
-        </div>
+        <div><label for="dim-w">Szélesség (m)</label><input type="number" id="dim-w" min=".5" max="20" step=".1" value="3" inputmode="decimal"></div>
+        <div><label for="dim-l">Hosszúság / mélység (m)</label><input type="number" id="dim-l" min=".5" max="20" step=".1" value="4" inputmode="decimal"></div>
       </div>
-
       <div class="form-row" id="qty-row" style="display:none">
-        <div>
-          <label for="qty">Hány darab?</label>
-          <input type="number" id="qty" min="1" max="50" step="1" value="1" inputmode="numeric">
-        </div>
+        <div><label for="qty">Hány darab?</label><input type="number" id="qty" min="1" max="50" step="1" value="1" inputmode="numeric"></div>
       </div>
-
       <div class="form-row cols-2">
-        <div>
-          <label for="loc">Helység vagy megye</label>
-          <input type="text" id="loc" placeholder="pl. Veszprém vagy Pest megye">
-        </div>
-        <div>
-          <label for="extra">Bármi pluszinfó? <span style="font-weight:400;color:var(--wood-mid)">(opcionális)</span></label>
-          <input type="text" id="extra" placeholder="pl. szigetelt, festett, lépcsős…">
-        </div>
+        <div><label for="loc">Helység vagy megye</label><input type="text" id="loc" placeholder="pl. Veszprém vagy Pest megye"></div>
+        <div><label for="extra">Bármi pluszinfó? <span style="font-weight:400;color:var(--wood-mid)">(opcionális)</span></label><input type="text" id="extra" placeholder="pl. szigetelt, festett, lépcsős…"></div>
       </div>
 
       <button type="button" class="btn btn-primary" id="calc-btn" style="width:100%;padding:1rem">
@@ -383,7 +465,7 @@
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
       </button>
 
-      <div class="result" id="result">
+      <div class="result" id="result" role="status" aria-live="polite">
         <div class="result-label">Becsült árösáv</div>
         <div class="result-price" id="result-price">—</div>
         <div class="result-note" id="result-note"></div>
@@ -395,28 +477,108 @@
   </div>
 </section>
 
+<!-- PROCESS -->
+<section class="process-section" id="folyamat">
+  <div class="container">
+    <p class="eyebrow reveal">Mire számíts?</p>
+    <h2 class="reveal">6 lépés a kapuig — átláthatóan.</h2>
+    <ol class="process-list">
+      <li class="process-step reveal">
+        <span class="step-num">1</span>
+        <h3>Kalkuláld</h3>
+        <p>Töltsd ki a kalkulátort, hogy lásd a nagyságrendet.</p>
+        <span class="step-time">1 perc</span>
+      </li>
+      <li class="process-step reveal" style="transition-delay:60ms">
+        <span class="step-num">2</span>
+        <h3>Beszéljünk</h3>
+        <p>Visszaírok emailben vagy felhívlak. Pár kérdés, és tisztázódnak a részletek.</p>
+        <span class="step-time">1–2 napon belül</span>
+      </li>
+      <li class="process-step reveal" style="transition-delay:120ms">
+        <span class="step-num">3</span>
+        <h3>Felmérés</h3>
+        <p>Kimegyek a helyszínre, megnézzük együtt a terepet és a beillesztést.</p>
+        <span class="step-time">díjmentes</span>
+      </li>
+      <li class="process-step reveal">
+        <span class="step-num">4</span>
+        <h3>Pontos ajánlat</h3>
+        <p>Részletes, írásos ajánlat anyaggal és munkadíjjal — semmi rejtett tétel.</p>
+        <span class="step-time">3–5 napon belül</span>
+      </li>
+      <li class="process-step reveal" style="transition-delay:60ms">
+        <span class="step-num">5</span>
+        <h3>Építés</h3>
+        <p>Megfaragom a műhelyben, kihozom, beüzemelem. A megbeszélt időre, díszítve.</p>
+        <span class="step-time">2–8 hét</span>
+      </li>
+      <li class="process-step reveal" style="transition-delay:120ms">
+        <span class="step-num">6</span>
+        <h3>Átadás</h3>
+        <p>Átveszed, használod. 12 hónap garancia, plusz tippek a karbantartáshoz.</p>
+        <span class="step-time">+ garancia</span>
+      </li>
+    </ol>
+  </div>
+</section>
+
 <!-- GALLERY -->
 <section id="munkaim">
   <div class="container">
-    <p class="eyebrow">Munkáim</p>
-    <h2>Pár darab a műhelyből.</h2>
-    <p style="max-width:60ch">A galéria hamarosan: Tibi most állítja össze a referenciaképeket. Ha addig is kíváncsi vagy egy konkrét típusra, írj — küldök fotót.</p>
+    <p class="eyebrow reveal">Munkáim</p>
+    <h2 class="reveal">Pár darab a műhelyből.</h2>
+    <p class="reveal" style="max-width:60ch">A galéria hamarosan: Tibi most állítja össze a referenciaképeket. Ha addig is kíváncsi vagy egy konkrét típusra, írj — küldök fotót.</p>
     <div class="gallery-grid">
-      <div class="gallery-tile">Előtető<br><span style="opacity:.7">kép hamarosan</span></div>
-      <div class="gallery-tile">Faház<br><span style="opacity:.7">kép hamarosan</span></div>
-      <div class="gallery-tile">Kutyaház<br><span style="opacity:.7">kép hamarosan</span></div>
-      <div class="gallery-tile">Tároló<br><span style="opacity:.7">kép hamarosan</span></div>
+      <div class="gallery-tile reveal">Előtető<br><span style="opacity:.7">kép hamarosan</span></div>
+      <div class="gallery-tile reveal" style="transition-delay:60ms">Faház<br><span style="opacity:.7">kép hamarosan</span></div>
+      <div class="gallery-tile reveal" style="transition-delay:120ms">Kutyaház<br><span style="opacity:.7">kép hamarosan</span></div>
+      <div class="gallery-tile reveal" style="transition-delay:180ms">Tároló<br><span style="opacity:.7">kép hamarosan</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ — Tibi: a válaszokat finomíthatjuk, ezek józan defaultok -->
+<section class="faq-section" id="kerdesek">
+  <div class="container">
+    <p class="eyebrow reveal">Gyakori kérdések</p>
+    <h2 class="reveal">Mielőtt felveszed a kapcsolatot.</h2>
+    <div class="faq-list">
+      <details class="faq reveal">
+        <summary>Mennyibe kerül a szállítás?</summary>
+        <div class="faq-body"><p>A környékre (Veszprém és kb. 40 km-en belül) a szállítást belekalkulálom az árba. Távolabbi munkáknál a kiszállást előre megbeszéljük, és a tényleges költséget — semmi meglepetés.</p></div>
+      </details>
+      <details class="faq reveal" style="transition-delay:50ms">
+        <summary>Mennyi idő alatt készül el egy előtető vagy faház?</summary>
+        <div class="faq-body"><p>Egy 3×4-es előtető nagyjából 2–3 hét, egy közepes faház méretétől függően 4–8 hét. A pontos időt mindig a felmérés után tudom mondani — nem ígérek olyan határidőt amit nem tudok tartani.</p></div>
+      </details>
+      <details class="faq reveal" style="transition-delay:100ms">
+        <summary>Vállalsz-e Veszprém / Pest megyén kívül is?</summary>
+        <div class="faq-body"><p>Igen, országosan vállalom. Távolabbi munkáknál a kiszállás és szállítás külön tétel — ezt mindig az ajánlatban előre látod.</p></div>
+      </details>
+      <details class="faq reveal" style="transition-delay:150ms">
+        <summary>Saját tervemből építesz, vagy a tieddel dolgozol?</summary>
+        <div class="faq-body"><p>Mindkettő megy. Ha van kész terved (akár csak egy rajz egy szalvétán), abból dolgozom. Ha nincs, együtt megtaláljuk a megoldást — sok év tapasztalat alapján tudom, mi szokott működni.</p></div>
+      </details>
+      <details class="faq reveal" style="transition-delay:200ms">
+        <summary>Mennyi a garancia?</summary>
+        <div class="faq-body"><p>A teljes munkára 12 hónap garancia. A faszerkezet és a kivitelezés minőségére állok jót — a természetes faanyag karbantartást igényel (festés, impregnálás), erről átadáskor adok tippeket.</p></div>
+      </details>
+      <details class="faq reveal" style="transition-delay:250ms">
+        <summary>Kell-e építési engedély egy kerti faházra?</summary>
+        <div class="faq-body"><p>12 m² alatti kerti melléképület általában nem engedélyköteles, de ezt mindig a helyi építési hatóságnál érdemes pontosítani. Ebben is segítek tanáccsal a felmérésnél, de az engedélyeztetés a tulaj feladata.</p></div>
+      </details>
     </div>
   </div>
 </section>
 
 <!-- CONTACT -->
-<section id="kapcsolat" class="grain">
+<section id="kapcsolat">
   <div class="container">
-    <p class="eyebrow">Kérek ajánlatot</p>
-    <h2>Néhány sor — Tibi 1-2 napon belül válaszol.</h2>
+    <p class="eyebrow reveal">Kérek ajánlatot</p>
+    <h2 class="reveal">Néhány sor — Tibi 1–2 napon belül válaszol.</h2>
     <div class="contact-wrap">
-      <form class="calc-card" id="contact-form" novalidate>
+      <form class="calc-card reveal" id="contact-form" novalidate>
         <div class="form-row cols-2">
           <div><label for="name">Neved</label><input type="text" id="name" required></div>
           <div><label for="phone">Telefon</label><input type="tel" id="phone" inputmode="tel" placeholder="+36…"></div>
@@ -434,7 +596,7 @@
         <p style="font-size:.82rem;color:var(--wood-mid);margin:.8rem 0 0">A „Küldés"-re kattintva a leveleződ nyílik meg az adataiddal — onnan már csak el kell küldeni.</p>
       </form>
 
-      <div class="contact-card">
+      <div class="contact-card reveal" style="transition-delay:80ms">
         <h3>Tibi műhelye</h3>
         <p style="margin-top:.5rem;position:relative">Kézzel készült faházak, előtetők, kutyaházak — Magyarország-szerte vállalom.</p>
         <p class="info-label">Email</p>
@@ -449,20 +611,158 @@
 
 </main>
 
+<a href="#kalkulator" class="sticky-cta" id="stickyCta">
+  Kapj árat 1 perc alatt
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+</a>
+
 <footer>
   <div><strong>Fakukac</strong> — Tibi keze munkája · © 2026</div>
-  <div style="margin-top:.5rem;opacity:.7">Készült szeretettel és sok forgáccsal. 🪵</div>
+  <div style="margin-top:.5rem;opacity:.7">Készült szeretettel és sok forgáccsal.</div>
+  <div class="made-by-hand">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h3M18 12h3M12 3v3M12 18v3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>
+    Egyenként kifaragva
+  </div>
 </footer>
 
 <script>
-  // Pricing — placeholder, Tibivel finomítjuk
+  // ===== Reduced-motion check =====
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ===== Reveal observer =====
+  const revealEls = document.querySelectorAll('.reveal');
+  if ('IntersectionObserver' in window && !reduceMotion) {
+    const revealObs = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('in');
+          revealObs.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+    revealEls.forEach(el => revealObs.observe(el));
+  } else {
+    revealEls.forEach(el => el.classList.add('in'));
+  }
+
+  // ===== Counter animation =====
+  if ('IntersectionObserver' in window && !reduceMotion) {
+    const countObs = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (!e.isIntersecting) return;
+        const el = e.target;
+        const target = parseInt(el.dataset.counter, 10) || 0;
+        const dur = 1400;
+        const start = performance.now();
+        const tick = (t) => {
+          const p = Math.min(1, (t - start) / dur);
+          const eased = 1 - Math.pow(1 - p, 3);
+          el.textContent = Math.round(eased * target);
+          if (p < 1) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+        countObs.unobserve(el);
+      });
+    }, { threshold: 0.5 });
+    document.querySelectorAll('[data-counter]').forEach(el => countObs.observe(el));
+  } else {
+    document.querySelectorAll('[data-counter]').forEach(el => el.textContent = el.dataset.counter);
+  }
+
+  // ===== Mascot eye-tracking =====
+  (function () {
+    if (reduceMotion) return;
+    const svg = document.getElementById('mascot');
+    const lp = svg && svg.querySelector('.pupil-left');
+    const rp = svg && svg.querySelector('.pupil-right');
+    if (!svg || !lp || !rp) return;
+    const eyes = [
+      { el: lp, cx: 334, cy: 216 },
+      { el: rp, cx: 364, cy: 216 }
+    ];
+    const update = (clientX, clientY) => {
+      const r = svg.getBoundingClientRect();
+      const sx = ((clientX - r.left) / r.width) * 400;
+      const sy = ((clientY - r.top) / r.height) * 360;
+      eyes.forEach(eye => {
+        const dx = sx - eye.cx;
+        const dy = sy - eye.cy;
+        const dist = Math.hypot(dx, dy) || 1;
+        const factor = Math.min(3.5, dist / 22);
+        const tx = (dx / dist) * factor;
+        const ty = (dy / dist) * factor;
+        eye.el.setAttribute('transform', `translate(${tx.toFixed(2)} ${ty.toFixed(2)})`);
+      });
+    };
+    window.addEventListener('mousemove', e => update(e.clientX, e.clientY), { passive: true });
+    window.addEventListener('touchmove', e => {
+      if (e.touches[0]) update(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: true });
+  })();
+
+  // ===== Hero parallax =====
+  (function () {
+    if (reduceMotion) return;
+    const px = document.getElementById('parallax');
+    const hero = document.querySelector('.hero');
+    if (!px || !hero) return;
+    let ticking = false;
+    const tick = () => {
+      const r = hero.getBoundingClientRect();
+      if (r.bottom > 0 && r.top < window.innerHeight) {
+        const offset = Math.max(-26, Math.min(26, r.top * -0.09));
+        px.style.transform = `translateY(${offset.toFixed(1)}px)`;
+      }
+      ticking = false;
+    };
+    window.addEventListener('scroll', () => {
+      if (!ticking) { requestAnimationFrame(tick); ticking = true; }
+    }, { passive: true });
+    tick();
+  })();
+
+  // ===== Sticky mobile CTA =====
+  (function () {
+    const cta = document.getElementById('stickyCta');
+    const hero = document.querySelector('.hero');
+    if (!cta || !hero) return;
+    const update = () => {
+      const heroBottom = hero.offsetTop + hero.offsetHeight;
+      const show = (window.scrollY + 100) > heroBottom;
+      cta.dataset.visible = show ? 'true' : 'false';
+      requestAnimationFrame(() => cta.classList.toggle('show', show));
+    };
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    update();
+  })();
+
+  // ===== FAQ accordion: close siblings =====
+  document.querySelectorAll('.faq').forEach(faq => {
+    faq.addEventListener('toggle', () => {
+      if (faq.open) {
+        document.querySelectorAll('.faq[open]').forEach(o => { if (o !== faq) o.open = false; });
+      }
+    });
+  });
+
+  // ===== Type pill tap-pulse =====
+  document.querySelectorAll('.type-pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+      pill.classList.remove('tap-pulse');
+      void pill.offsetWidth; // reflow
+      pill.classList.add('tap-pulse');
+    });
+  });
+
+  // ===== Calculator =====
   const PRICING = {
-    eloteto:  { kind:'area',  base:85000,  range:.20, label:'Előtető' },
-    fahaz:    { kind:'area',  base:280000, range:.25, label:'Faház' },
-    kutyahaz: { kind:'area',  base:95000,  range:.25, label:'Kutyaház', minPrice:55000 },
-    tarolo:   { kind:'area',  base:180000, range:.20, label:'Tároló' },
-    ajto:     { kind:'piece', base:130000, range:.30, label:'Ajtó' },
-    ablak:    { kind:'piece', base:80000,  range:.30, label:'Ablak' },
+    eloteto:  { kind: 'area',  base: 85000,  range: .20, label: 'Előtető' },
+    fahaz:    { kind: 'area',  base: 280000, range: .25, label: 'Faház' },
+    kutyahaz: { kind: 'area',  base: 95000,  range: .25, label: 'Kutyaház', minPrice: 55000 },
+    tarolo:   { kind: 'area',  base: 180000, range: .20, label: 'Tároló' },
+    ajto:     { kind: 'piece', base: 130000, range: .30, label: 'Ajtó' },
+    ablak:    { kind: 'piece', base: 80000,  range: .30, label: 'Ablak' }
   };
   let currentType = 'eloteto';
   let lastQuote = '';
@@ -513,9 +813,10 @@
 
     const r = document.getElementById('result');
     r.classList.add('show');
-    r.scrollIntoView({behavior:'smooth', block:'nearest'});
+    r.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   });
 
+  // ===== Contact form (mailto) =====
   document.getElementById('contact-form').addEventListener('submit', e => {
     e.preventDefault();
     const name = document.getElementById('name').value.trim();
@@ -534,11 +835,10 @@
       `Név: ${name}`,
       `Email: ${email}`,
       phone ? `Telefon: ${phone}` : null,
-      lastQuote ? `Kalkulátor: ${lastQuote}` : null,
+      lastQuote ? `Kalkulátor: ${lastQuote}` : null
     ].filter(Boolean);
     const body = bodyParts.join('\n');
-    const url = `mailto:tibor.fakukac@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.location.href = url;
+    window.location.href = `mailto:tibor.fakukac@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   });
 </script>
 
