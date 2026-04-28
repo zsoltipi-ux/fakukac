@@ -628,11 +628,12 @@
         <div class="form-row">
           <div><label for="msg">Mit szeretnél?</label><textarea id="msg" rows="4" placeholder="pl. 3x4 m előtető Veszprémbe, oldalfalak nélkül…"></textarea></div>
         </div>
-        <button type="submit" class="btn btn-primary" style="width:100%;padding:1rem">
-          Küldés Tibinek
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></svg>
+        <button type="submit" class="btn btn-primary" id="contact-submit" style="width:100%;padding:1rem">
+          <span class="contact-btn-label">Küldés Tibinek</span>
+          <svg class="contact-btn-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></svg>
         </button>
-        <p style="font-size:.82rem;color:var(--wood-mid);margin:.8rem 0 0">A „Küldés"-re kattintva a leveleződ nyílik meg az adataiddal — onnan már csak el kell küldeni.</p>
+        <div id="contact-status" style="display:none;margin-top:.9rem;padding:.85rem 1rem;border-radius:12px;font-size:.95rem;line-height:1.4"></div>
+        <p style="font-size:.82rem;color:var(--wood-mid);margin:.8rem 0 0">Az adataidat csak Tibinek küldjük, harmadik félnek nem adjuk tovább. Tibi 1–2 napon belül jelentkezik.</p>
       </form>
 
       <div class="contact-card reveal" style="transition-delay:80ms">
@@ -890,29 +891,71 @@
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && lb.dataset.open === 'true') close(); });
   })();
 
-  // ===== Contact form (mailto) =====
-  document.getElementById('contact-form').addEventListener('submit', e => {
+  // ===== Contact form (Vercel API → Resend) =====
+  // FONTOS: Vercel deploy után írd át ezt az URL-t a saját végpontodra,
+  // pl. https://fakukac-contact-api.vercel.app/api/contact
+  const CONTACT_API_URL = 'https://fakukac-contact-api.vercel.app/api/contact';
+
+  const contactForm = document.getElementById('contact-form');
+  const contactBtn = document.getElementById('contact-submit');
+  const contactBtnLabel = contactBtn.querySelector('.contact-btn-label');
+  const contactStatus = document.getElementById('contact-status');
+
+  function showStatus(type, text) {
+    contactStatus.style.display = 'block';
+    contactStatus.textContent = text;
+    if (type === 'success') {
+      contactStatus.style.background = '#eaf3dc';
+      contactStatus.style.border = '1px solid #b9cf8e';
+      contactStatus.style.color = '#3f5520';
+    } else if (type === 'error') {
+      contactStatus.style.background = '#fbe8e0';
+      contactStatus.style.border = '1px solid #e6b89c';
+      contactStatus.style.color = '#7a3217';
+    }
+  }
+
+  contactForm.addEventListener('submit', async e => {
     e.preventDefault();
     const name = document.getElementById('name').value.trim();
     const phone = document.getElementById('phone').value.trim();
     const email = document.getElementById('email').value.trim();
     const msg = document.getElementById('msg').value.trim();
+
     if (!name || !email) {
-      alert('Kérlek add meg legalább a neved és az email címed.');
+      showStatus('error', 'Kérlek add meg legalább a neved és az email címed.');
       return;
     }
-    const subject = `Ajánlatkérés — ${name}`;
-    const bodyParts = [
-      `Szia Tibi!`, ``,
-      msg || '(üzenet nélkül)',
-      ``, `--`,
-      `Név: ${name}`,
-      `Email: ${email}`,
-      phone ? `Telefon: ${phone}` : null,
-      lastQuote ? `Kalkulátor: ${lastQuote}` : null
-    ].filter(Boolean);
-    const body = bodyParts.join('\n');
-    window.location.href = `mailto:tibor.fakukac@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      showStatus('error', 'Az email cím nem tűnik érvényesnek — ellenőrizd, légyszi.');
+      return;
+    }
+
+    contactBtn.disabled = true;
+    contactBtnLabel.textContent = 'Küldés folyamatban…';
+    contactStatus.style.display = 'none';
+
+    try {
+      const res = await fetch(CONTACT_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, phone, msg, quote: lastQuote || null })
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Hiba történt — próbáld újra később.');
+      }
+
+      contactForm.reset();
+      contactBtnLabel.textContent = 'Üzenet elküldve ✓';
+      showStatus('success', 'Köszönöm! Tibi 1–2 napon belül válaszol az emailedre.');
+    } catch (err) {
+      console.error('Contact form error:', err);
+      contactBtnLabel.textContent = 'Küldés Tibinek';
+      contactBtn.disabled = false;
+      showStatus('error', `Nem sikerült elküldeni az üzenetet. Írj közvetlenül: tibor.fakukac@gmail.com`);
+    }
   });
 </script>
 
